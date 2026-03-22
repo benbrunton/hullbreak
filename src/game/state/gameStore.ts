@@ -20,6 +20,7 @@ type GameState = {
 
   upsertEntity: (entity: GameEntity) => void;
   removeEntity: (id: string) => void;
+  batchUpdate: (toRemove: string[], toUpsert: GameEntity[], scoreGain: number) => void;
   addScore: (points: number) => void;
   getPlayer: () => Player | undefined;
 };
@@ -73,6 +74,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       const next = new Map(s.entities);
       next.delete(id);
       return { entities: next };
+    }),
+
+  batchUpdate: (toRemove, toUpsert, scoreGain) =>
+    set((s) => {
+      const next = new Map(s.entities);
+      for (const id of toRemove) next.delete(id);
+      for (const entity of toUpsert) next.set(entity.id, entity);
+      return { entities: next, score: s.score + scoreGain };
     }),
 
   addScore: (points) => set((s) => ({ score: s.score + points })),

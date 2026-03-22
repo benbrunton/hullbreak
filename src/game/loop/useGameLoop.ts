@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { applyMovement, applyProjectileMovement } from '../systems/movement';
-import { isOffScreen } from '../systems/collision';
+import { aabbOverlap } from '../systems/collision';
 import { GameEntity } from '../entities/types';
 
 type GameLoopOptions = {
@@ -25,6 +25,12 @@ export function useGameLoop({ screenWidth, screenHeight }: GameLoopOptions) {
 
         const toRemove: string[] = [];
         const toUpsert: GameEntity[] = [];
+        let scoreGain = 0;
+
+        // Collect enemies for hit detection
+        const enemies = Array.from(store.entities.values()).filter(
+          (e) => e.kind === 'enemy' && e.active,
+        );
 
         for (const entity of store.entities.values()) {
           if (!entity.active) {
@@ -38,9 +44,20 @@ export function useGameLoop({ screenWidth, screenHeight }: GameLoopOptions) {
             // Physics handled on the UI thread by usePlayerPhysics
             continue;
           } else if (entity.kind === 'projectile') {
-            updated = applyProjectileMovement(entity, delta);
-            if (isOffScreen(updated, screenWidth, screenHeight)) {
+            const life = entity.life - delta;
+            if (life <= 0) {
               toRemove.push(entity.id);
+              continue;
+            }
+            updated = applyProjectileMovement({ ...entity, life }, delta);
+            // Hit detection against enemies
+            const hit = enemies.find(
+              (e) => !toRemove.includes(e.id) && aabbOverlap(updated, e),
+            );
+            if (hit) {
+              toRemove.push(entity.id);
+              toRemove.push(hit.id);
+              scoreGain += 100;
               continue;
             }
           } else if (entity.kind === 'particle') {
@@ -58,8 +75,7 @@ export function useGameLoop({ screenWidth, screenHeight }: GameLoopOptions) {
           toUpsert.push(updated);
         }
 
-        for (const id of toRemove) store.removeEntity(id);
-        for (const entity of toUpsert) store.upsertEntity(entity);
+        store.batchUpdate(toRemove, toUpsert, scoreGain);
       } else {
         lastTimeRef.current = 0;
       }

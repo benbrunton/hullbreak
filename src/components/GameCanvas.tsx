@@ -5,8 +5,9 @@ import { runOnJS, useDerivedValue, useSharedValue, withSequence, withTiming, wit
 import { useGameStore } from '@/game/state/gameStore';
 import { useGameLoop } from '@/game/loop/useGameLoop';
 import { usePlayerPhysics } from '@/game/loop/usePlayerPhysics';
+import { useParticleEmitter } from '@/game/loop/useParticleEmitter';
 import { inputThrust, inputSteer } from '@/input/inputState';
-import { GameEntity } from '@/game/entities/types';
+import { GameEntity, Projectile } from '@/game/entities/types';
 
 const PARALLAX_FAR  = 0.02;
 const PARALLAX_MID  = 0.05;
@@ -26,6 +27,7 @@ export function GameCanvas({ width, height }: Props) {
   useGameLoop({ screenWidth: width, screenHeight: height });
 
   const { x, y, rotation, camX, camY, active, reset } = usePlayerPhysics(width, height);
+  useParticleEmitter(phase, x, y, rotation);
 
   const cameraTransform = useDerivedValue(() => [
     { translateX: camX.value },
@@ -126,11 +128,36 @@ export function GameCanvas({ width, height }: Props) {
     return () => clearTimeout(gameTimer);
   }, [phase]);
 
+  const PROJECTILE_SPEED = 450;
+  const PROJECTILE_LIFE = 2.0;
+
   const handleTap = () => {
-    if (phase === 'idle') {
+    // Read phase from store directly to avoid stale closure
+    const currentPhase = useGameStore.getState().phase;
+    if (currentPhase === 'idle') {
       beginIntro();
-    } else if (phase === 'gameover') {
+    } else if (currentPhase === 'gameover') {
       startGame(width, height);
+    } else if (currentPhase === 'playing') {
+      const r = rotation.value;
+      const projectile: Projectile = {
+        id: `proj_${Date.now()}_${Math.random()}`,
+        kind: 'projectile',
+        ownerId: 'player',
+        position: {
+          x: x.value + Math.sin(r) * 22,
+          y: y.value - Math.cos(r) * 22,
+        },
+        velocity: {
+          x: Math.sin(r) * PROJECTILE_SPEED,
+          y: -Math.cos(r) * PROJECTILE_SPEED,
+        },
+        size: { x: 8, y: 8 },
+        rotation: r,
+        active: true,
+        life: PROJECTILE_LIFE,
+      };
+      useGameStore.getState().upsertEntity(projectile);
     }
   };
 

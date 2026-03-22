@@ -26,6 +26,7 @@ export type Enemy = Entity & {
 export type Projectile = Entity & {
   kind: 'projectile';
   ownerId: string;
+  life: number; // seconds remaining
 };
 
 export type Particle = Entity & {
