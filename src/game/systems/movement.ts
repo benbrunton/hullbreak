@@ -1,28 +1,39 @@
-import { GameEntity } from '../entities/types';
+import { input } from '../../input/inputState';
+import { GameEntity, Player } from '../entities/types';
 
-/** Apply velocity to position for a single entity, clamping to screen bounds. */
-export function applyMovement(
-  entity: GameEntity,
-  delta: number,
-  screenWidth: number,
-  screenHeight: number,
-): GameEntity {
-  const hw = entity.size.x / 2;
-  const hh = entity.size.y / 2;
+const ROTATE_SPEED = 2.5;  // radians per second
+const THRUST_FORCE = 400;  // px/s²
+const DRAG = 0.5;          // velocity retained after 1 second
 
-  const x = Math.max(hw, Math.min(screenWidth - hw,
-    entity.position.x + entity.velocity.x * delta));
-  const y = Math.max(hh, Math.min(screenHeight - hh,
-    entity.position.y + entity.velocity.y * delta));
+export function applyPlayerMovement(entity: Player, delta: number): Player {
+  const rotation = entity.rotation + input.steer * ROTATE_SPEED * delta;
 
-  return { ...entity, position: { x, y } };
+  const thrustX = Math.sin(rotation) * input.thrust * THRUST_FORCE * delta;
+  const thrustY = -Math.cos(rotation) * input.thrust * THRUST_FORCE * delta;
+
+  const drag = Math.pow(DRAG, delta);
+  const vx = (entity.velocity.x + thrustX) * drag;
+  const vy = (entity.velocity.y + thrustY) * drag;
+
+  return {
+    ...entity,
+    rotation,
+    velocity: { x: vx, y: vy },
+    position: { x: entity.position.x + vx * delta, y: entity.position.y + vy * delta },
+  };
 }
 
-/** Move a projectile straight — no bounds clamping, caller removes off-screen. */
-export function applyProjectileMovement(
-  entity: GameEntity,
-  delta: number,
-): GameEntity {
+export function applyMovement(entity: GameEntity, delta: number): GameEntity {
+  return {
+    ...entity,
+    position: {
+      x: entity.position.x + entity.velocity.x * delta,
+      y: entity.position.y + entity.velocity.y * delta,
+    },
+  };
+}
+
+export function applyProjectileMovement(entity: GameEntity, delta: number): GameEntity {
   return {
     ...entity,
     position: {

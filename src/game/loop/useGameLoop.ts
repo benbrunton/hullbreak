@@ -34,7 +34,10 @@ export function useGameLoop({ screenWidth, screenHeight }: GameLoopOptions) {
 
           let updated: GameEntity;
 
-          if (entity.kind === 'projectile') {
+          if (entity.kind === 'player') {
+            // Physics handled on the UI thread by usePlayerPhysics
+            continue;
+          } else if (entity.kind === 'projectile') {
             updated = applyProjectileMovement(entity, delta);
             if (isOffScreen(updated, screenWidth, screenHeight)) {
               toRemove.push(entity.id);
@@ -48,7 +51,8 @@ export function useGameLoop({ screenWidth, screenHeight }: GameLoopOptions) {
             }
             updated = applyProjectileMovement({ ...entity, life }, delta);
           } else {
-            updated = applyMovement(entity, delta, screenWidth, screenHeight);
+            if (entity.velocity.x === 0 && entity.velocity.y === 0) continue;
+            updated = applyMovement(entity, delta);
           }
 
           toUpsert.push(updated);

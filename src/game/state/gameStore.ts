@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { GameEntity, Player } from '../entities/types';
+import { Enemy, GameEntity, Player } from '../entities/types';
 import { createPlayer } from '../entities/player';
 
-export type GamePhase = 'idle' | 'playing' | 'paused' | 'gameover';
+export type GamePhase = 'idle' | 'intro' | 'starring' | 'playing' | 'paused' | 'gameover';
 
 type GameState = {
   phase: GamePhase;
@@ -10,6 +10,8 @@ type GameState = {
   entities: Map<string, GameEntity>;
 
   // Actions
+  beginIntro: () => void;
+  endIntro: () => void;
   startGame: (screenWidth: number, screenHeight: number) => void;
   pauseGame: () => void;
   resumeGame: () => void;
@@ -27,12 +29,25 @@ export const useGameStore = create<GameState>((set, get) => ({
   score: 0,
   entities: new Map(),
 
+  beginIntro: () => set({ phase: 'intro' }),
+  endIntro: () => set({ phase: 'starring' }),
+
   startGame: (screenWidth, screenHeight) => {
-    const player = createPlayer(screenWidth / 2, screenHeight * 0.75);
+    const player = createPlayer(0, 0);
+    const marker: Enemy = {
+      id: 'marker',
+      kind: 'enemy',
+      position: { x: 0, y: -300 },
+      velocity: { x: 0, y: 0 },
+      size: { x: 28, y: 28 },
+      rotation: 0,
+      active: true,
+      health: 999,
+    };
     set({
       phase: 'playing',
       score: 0,
-      entities: new Map([[player.id, player]]),
+      entities: new Map([[player.id, player], [marker.id, marker]]),
     });
   },
 
